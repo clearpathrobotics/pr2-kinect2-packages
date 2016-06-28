@@ -1,10 +1,25 @@
 #!/bin/bash
 
+from optparse import OptionParser
+
+parser = OptionParser(usage="usage: %prog [options]")
+parser.add_option("-h", "--hostname", dest="hostname",
+                  help="this computer's hostname", metavar="HOSTNAME", default="pr2-head")
+parser.add_option("-m", "--master", dest="master",
+                  help="ROS_MASTER_URI", metavar="MASTER", default="c1")
+parser.add_option("-i", "--ip", dest="ip",
+                  help="ROS_IP", metavar="ROSIP", default="10.68.0.10")
+
+(options, args) = parser.parse_args()
+
 echo "Kinect Driver and ROS Installion"
 echo "The following script will install:
 	beignet
 	libfreenect2 (Kinect2 Driver)
 	iai_kinect2  (ROS Driver for Kinect2)"
+echo "The script will give {} access to libfreenect2.".format(options.hostname)
+echo "The ROS_MASTER_URI will be set to {}.".format(options.master)
+echo "ROS_IP will be set to {}.".format(options.ip)
 read -p "Do you wish to continue [Enter]?"
 
 # Install Libfreenect2
@@ -12,8 +27,8 @@ cd
 if [ ! -d "libfreenect2" ];
 then
     git clone https://github.com/OpenKinect/libfreenect2.git
-    sudo chown pr2-head -R libfreenect2
-    sudo chgrp pr2-head -R libfreenect2
+    sudo chown options.hostname -R libfreenect2
+    sudo chgrp options.hostname -R libfreenect2
     #sudo apt-get install build-essential libturbojpeg libjpeg-turbo8-dev libtool autoconf libudev-dev cmake mesa-common-dev freeglut3-dev libxrandr-dev doxygen libxi-dev automake
     sudo apt-add-repository ppa:floe/libusb && sudo apt-get update && sudo apt-get upgrade # temp solution proposed by libfreenect2 owner, floe
     cd libfreenect2/depends
@@ -44,8 +59,8 @@ sudo cp libfreenect2/rules/90-kinect2.rules /etc/udev/rules.d/
 if [ ! -d "kinect_ws" ];
 then
     mkdir ~/kinect_ws && mkdir ~/kinect_ws/src
-    sudo chown pr2-head -R kinect_ws
-    sudo chgrp pr2-head -R kinect_ws
+    sudo chown options.hostname -R kinect_ws
+    sudo chgrp options.hostname -R kinect_ws
     cd ~/kinect_ws/src
     catkin_init_workspace
     git clone https://github.com/code-iai/iai_kinect2.git
@@ -57,15 +72,15 @@ then
 fi
 
 # Chrony setup and syncing clocks with c1
-sudo sed -i '/server 3.debian.pool.ntp.org offline minpoll 8/ a\server c1 offline minpoll 8' /etc/chrony/chrony.conf
+sudo sed -i '/server 3.debian.pool.ntp.org offline minpoll 8/ a\server options.master offline minpoll 8' /etc/chrony/chrony.conf
 sudo /etc/init.d/chrony stop
-sudo ntpdate c1
+sudo ntpdate options.master
 sudo /etc/init.d/chrony start
 
 # Source Files for rosrun iai_kinect
 echo "source ~/kinect_ws/devel/setup.bash" >> ~/.bashrc
-echo "export ROS_MASTER_URI=http://c1:11311" >> ~/.bashrc
-echo "export ROS_IP=10.68.0.10" >> ~/.bashrc
+echo "export ROS_MASTER_URI=http://{}:11311".format(options.master) >> ~/.bashrc
+echo "export ROS_IP={}".format(options.ip) >> ~/.bashrc
 . ~/.bashrc
 
 # Run Iai_kinect2 on startup
